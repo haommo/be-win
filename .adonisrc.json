@@ -1,0 +1,129 @@
+{
+  "typescript": true,
+  "directories": {
+    "config": "config",
+    "public": "public",
+    "contracts": "contracts",
+    "providers": "providers",
+    "database": "database",
+    "migrations": "database/migrations",
+    "seeds": "database/seeders",
+    "resources": "resources",
+    "views": "resources/views",
+    "start": "start",
+    "tmp": "tmp",
+    "tests": "tests"
+  },
+  "exceptionHandlerNamespace": "App/Exceptions/Handler",
+  "preloads": [
+    {
+      "file": "./start/routes",
+      "optional": false,
+      "environment": [
+        "web",
+        "console",
+        "test",
+        "repl"
+      ]
+    },
+    {
+      "file": "./start/kernel",
+      "optional": false,
+      "environment": [
+        "web",
+        "console",
+        "test",
+        "repl"
+      ]
+    }
+  ],
+  "namespaces": {
+    "models": "App/Models",
+    "middleware": "App/Middleware",
+    "exceptions": "App/Exceptions",
+    "validators": "App/Validators",
+    "httpControllers": "App/Controllers/Http",
+    "eventListeners": "App/Listeners",
+    "redisListeners": "App/Listeners"
+  },
+  "aliases": {
+    "App": "app",
+    "Config": "config",
+    "Database": "database",
+    "Contracts": "contracts"
+  },
+  "metaFiles": [],
+  "commands": [
+    "./commands",
+    "@adonisjs/core/build/commands/index.js",
+    "@adonisjs/repl/build/commands",
+    "@adonisjs/lucid/build/commands"
+  ],
+  "commandsAliases": {},
+  "providers": [
+    "./providers/AppProvider",
+    "@adonisjs/core",
+    "@adonisjs/lucid",
+    "@adonisjs/auth",
+    "@adonisjs/route-model-binding/build/providers/RmbProvider"
+  ],
+  "aceProviders": [
+    "@adonisjs/repl"
+  ],
+  "testProviders": [
+    "@japa/preset-adonis/TestsProvider"
+  ],
+  "tests": {
+    "suites": [
+      {
+        "name": "functional",
+        "files": [
+          "tests/functional/**/*.spec(.ts|.js)"
+        ],
+        "timeout": 60000
+      }
+    ],
+    "timeout": 2000,
+    "forceExit": true
+  },
+  "raw": {
+    "typescript": true,
+    "commands": [
+      "./commands",
+      "@adonisjs/core/build/commands/index.js",
+      "@adonisjs/repl/build/commands"
+    ],
+    "exceptionHandlerNamespace": "App/Exceptions/Handler",
+    "aliases": {
+      "App": "app",
+      "Config": "config",
+      "Database": "database",
+      "Contracts": "contracts"
+    },
+    "preloads": [
+      "./start/routes",
+      "./start/kernel"
+    ],
+    "providers": [
+      "./providers/AppProvider",
+      "@adonisjs/core"
+    ],
+    "aceProviders": [
+      "@adonisjs/repl"
+    ],
+    "tests": {
+      "suites": [
+        {
+          "name": "functional",
+          "files": [
+            "tests/functional/**/*.spec(.ts|.js)"
+          ],
+          "timeout": 60000
+        }
+      ]
+    },
+    "testProviders": [
+      "@japa/preset-adonis/TestsProvider"
+    ]
+  }
+}

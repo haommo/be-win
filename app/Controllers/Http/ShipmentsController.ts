@@ -15,7 +15,11 @@ export default class ShipmentsController {
   /* Start - Get list all shipment */
   public async index({ auth, response }) {
     if (auth.user.role == "RL1" || auth.user.role == "RL2") {
-      const shipments = await Shipment.all();
+      const shipments = await Database
+      .query()  //  gives an instance of select query builder
+  .from('shipments')
+  .select('*')
+  .orderBy('created_at', 'desc');
     
       /* for (const item of shipments) {
         let shipment = item;
@@ -405,16 +409,19 @@ export default class ShipmentsController {
       .select("manifest_shipments.manifest_id")
       .first();
 
+    const shipment_hwb = shipments.hawb;
     const sender_address = shipments.sender_address;
     const receiver_address = shipments.receiver_address;
     const sender_country = sender_address.country;
     const receiver_country = receiver_address.country;
+    const receiver_address1 = receiver_address.address_first;
     const receiver_name = receiver_address.name;
-    const receiver_phone = receiver_address.phone;
+    const receiver_phone = receiver_address.phone;  
 
     const shipment_histories = await Database.from("shipment_histories")
       .where("hawb", params.hawb)
       .select("status", "detail", "date", "location");
+
     if (Manifest_Shipment !== null) {
       const manifest_history = await Database.from("manifest_histories")
         .where("manifest_id", Manifest_Shipment.manifest_id)
@@ -432,7 +439,7 @@ export default class ShipmentsController {
     let config = {
       method: "post",
       maxBodyLength: Infinity,
-      url: "https://api.ship24.com/public/v1/trackers/track",
+      url: "https://api.ship24.com/public/v1/tracking/search",
       headers: {
         Authorization: "Bearer apik_5wWcCn6c91oDarpgNs4fXNDsecEJR2",
         "Content-Type": "application/x-www-form-urlencoded",
@@ -466,15 +473,17 @@ export default class ShipmentsController {
       }
     }
 
-/*     let sortedhistory = shipment_histories.sort((a, b) => (a.detail < b.detail) ? -1 : 1);
- */
+    let sortedhistory = shipment_histories.sort((a, b) => (a.date < b.date) ? -1 : 1); 
+ 
     return response.ok({
+      hwb: shipment_hwb,
       sender_country: sender_country,
       receiver_country: receiver_country,
       receiver_name: receiver_name,
+      receiver_address: receiver_address1,
       receiver_phone: receiver_phone,
       weight: shipment_package_infos[0].weight,
-      tracking_history: shipment_histories,
+      tracking_history: sortedhistory,
     });
   }
 

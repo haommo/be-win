@@ -141,20 +141,6 @@ export default class ShipmentsController {
     Shipment_History.location = city + " " + country;
     await Shipment_History.save();
 
-    if (shipment.status == null) {
-      const shipment_histories = await this.get_status(
-        shipment.hawb,
-        shipment.local_code,
-        shipment.local_tracking
-      );
-     // console.log(shipment_histories, "status11");
-      const lastStatus = shipment_histories[shipment_histories.length - 1];
-
-      if (lastStatus != null) {
-        shipment["status"] = lastStatus.status;
-      }
-    }
-
     return response.ok({
       shipment: shipment,
       Shipment_History: Shipment_History,

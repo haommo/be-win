@@ -6,6 +6,8 @@ import ShipmentHistory from "App/Models/ShipmentHistory";
 import ShipmentPackageInfo from "App/Models/ShipmentPackageInfo";
 import ShipmentProductInfo from "App/Models/ShipmentProductInfo";
 import ManifestShipment from "App/Models/ManifestShipment";
+//import Logger from '@ioc:Adonis/Core/Logger';
+//import transporter from 'App/Services/MailService'
 
 export default class Shipment extends BaseModel {
   public static table = 'shipments'
@@ -15,6 +17,12 @@ export default class Shipment extends BaseModel {
 
   @column()
   public hawb: string;
+
+  @column()
+  public created_by: string;
+
+  @column()
+  public created_for: string;
 
   @belongsTo(() => User, {
     foreignKey: 'created_by', 
@@ -26,7 +34,7 @@ export default class Shipment extends BaseModel {
     foreignKey: 'created_for', 
     localKey: 'uuid'
   })
-  public createdFor: BelongsTo<typeof User>;
+  public user: BelongsTo<typeof User>;
 
   @belongsTo(() => Service, {
     foreignKey: 'service_id', 
@@ -93,4 +101,6 @@ export default class Shipment extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime;
+
+
 }

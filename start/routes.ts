@@ -91,7 +91,7 @@ Route.get('current-user', 'UsersController.current_user').middleware('auth');
 Route.get('tracking/:hawb', 'ShipmentsController.tracking');
 Route.post('api_tracking/', 'ShipmentsController.api_tracking');
 
-Route.post('/webhook/shipment', 'WebhookController.store'); // Update tracking history từ webhook
+
 Route.get('/export-shipments', 'ShipmentsController.exportToCSV'); //Export Shipment
 
 

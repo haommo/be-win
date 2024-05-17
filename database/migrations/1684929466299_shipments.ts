@@ -16,7 +16,6 @@ export default class extends BaseSchema {
       table.string('reason_export', 255).notNullable()
       table.json('sender_address').notNullable()
       table.json('receiver_address').notNullable()
-
       table.timestamps(true, true)
     })
   }

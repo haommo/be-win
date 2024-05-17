@@ -1,7 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
+import Shipment from 'App/Models/Shipment'  // Ensure this path matches the location of your Shipment model
 
 export default class ShipmentPackageInfo extends BaseModel {
+  public static table = 'shipment_package_infos'
+
   @column({ isPrimary: true })
   public id: number
 
@@ -10,6 +13,11 @@ export default class ShipmentPackageInfo extends BaseModel {
 
   @column()
   public hawb: string;
+
+  @belongsTo(() => Shipment, {
+    foreignKey: 'hawb',  // 'hawb' in ShipmentPackageInfo links to 'hawb' in Shipment
+  })
+  public shipment: BelongsTo<typeof Shipment>
 
   @column()
   public quantity: number;

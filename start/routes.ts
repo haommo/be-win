@@ -61,14 +61,6 @@ Route.resource("service", "ServicesController").middleware({
   destroy: ["auth", "admin"],
 });
 
-Route.resource("notification", "NotificationsController").middleware({
-  index: ["auth"],
-  show: ["auth"],
-  store: ["auth", "adminManager"],
-  update: ["auth", "adminManager"],
-  destroy: ["auth", "adminManager"],
-});
-
 
 Route.resource("manifest", "ManifestShipmentsController").middleware({
   index: ["auth" , "adminManager"],
@@ -98,6 +90,9 @@ Route.get('addressbyuser/:user_uuid', 'AddressesController.byuser').middleware('
 Route.get('current-user', 'UsersController.current_user').middleware('auth');
 Route.get('tracking/:hawb', 'ShipmentsController.tracking');
 Route.post('api_tracking/', 'ShipmentsController.api_tracking');
+
+Route.post('/webhook/shipment', 'WebhookController.store'); // Update tracking history từ webhook
+Route.get('/export-shipments', 'ShipmentsController.exportToCSV'); //Export Shipment
 
 
 

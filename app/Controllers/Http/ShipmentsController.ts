@@ -1,69 +1,75 @@
-// import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-
+// App/Controllers/Http/ShipmentController.ts
+import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import Shipment from "App/Models/Shipment";
 import ShipmentProductInfo from "App/Models/ShipmentProductInfo";
 import ShipmentPackageInfo from "App/Models/ShipmentPackageInfo";
 import ShipmentHistory from "App/Models/ShipmentHistory";
+import ManifestShipment from 'App/Models/ManifestShipment';
+import ManifestHistory from 'App/Models/ManifestHistory';
 import { schema, rules } from "@ioc:Adonis/Core/Validator";
 const { v1: uuidv1 } = require("uuid");
-import axios from "axios";
+import { createObjectCsvStringifier as createCsvStringifier } from 'csv-writer';
+
 
 import Database from "@ioc:Adonis/Lucid/Database";
 
 export default class ShipmentsController {
 
-  /* Start - Get list all shipment */
-  public async index({ auth, response }) {
-    if (auth.user.role == "RL1" || auth.user.role == "RL2") {
-      const shipments = await Database
-      .query()  //  gives an instance of select query builder
-  .from('shipments')
-  .select('*')
-  .orderBy('created_at', 'desc');
-    
-      /* for (const item of shipments) {
-        let shipment = item;
-        if (shipment.status == null) {
-          const shipment_histories = await this.get_status(
-            shipment.hawb,
-            shipment.localcode,
-            shipment.localtracking
-          );
-          const lastStatus = shipment_histories[shipment_histories.length - 1];
-          item["status"] = lastStatus.status;
-        }
-      } */
-      return response.ok(shipments);
-    } else {
-      const shipments = await Database.from("shipments")
-      .from("shipments")
-        .where("created_for", auth.user.uuid)
+  // Get list all shipment 
+  public async index({ auth, response, request }) {
+    try {
+      // Xác định các tham số cơ bản cho phân trang
+      const page = request.input("page", 1);
+      const perPage = request.input("per_page", 5);
+      const filterBy = request.input("filter-by");
+  
+      // Khởi tạo truy vấn cơ bản với các trường cụ thể
+      let query = Shipment.query()
         .select(
-          "hawb",
-          "status",
-          "created_at",
-          "receiver_address",
-          "service_id",
-          "created_at"
-        );
-      /* for (const item of shipments) {
-        let shipment = item;
-        if (shipment.status == null) {
-          const shipment_histories = await this.get_status(
-            shipment.hawb,
-            shipment.localcode,
-            shipment.localtracking
-          );
-          const lastStatus = shipment_histories[shipment_histories.length - 1];
-          item["status"] = lastStatus.status;
+          'hawb',
+          'service_id',
+          'local_tracking',
+          'status',
+          'created_at',
+          'sender_address',
+          'receiver_address'
+        )
+        .orderBy("created_at", "desc");
+  
+      // Đối với sender_address và receiver_address, bạn cần truy vấn JSON
+      if (filterBy) {
+        query = query.where((query) => {
+          query
+          .whereJson("sender_address", { name: filterBy })
+          .orWhereJson("receiver_address", { name: filterBy })
+          .orWhere("hawb", filterBy)
+          .orWhere("local_tracking", filterBy);
+        });
+      }
+  
+      // Xử lý phân quyền
+      if (!(auth.user.role == "RL1" || auth.user.role == "RL2")) {
+        query = query.where("created_for", auth.user.uuid);
+      } else {
+        const userUuid = request.input("userUuid");
+        if (userUuid) {
+          query = query.where("created_for", userUuid);
         }
-      } */
+      }
+  
+      // Thực hiện truy vấn và phân trang kết quả
+      const shipments = await query.paginate(page, perPage);
+  
+      // Trả về dữ liệu đã phân trang
       return response.ok(shipments);
+    } catch (error) {
+      // Log lỗi và trả về thông báo lỗi cho người dùng
+      console.error("Error fetching shipments: ", error);
+      return response.status(500).send({ message: "Failed to fetch shipments" });
     }
   }
-  /* End - Get list all shipment */
 
-  /* Start - Create new shipment */
+  // Create new shipment
   public async store({ auth, request, response }) {
     const uniqueIdInt = Math.floor(10000000000 + Math.random() * 90000000000);
 
@@ -86,26 +92,6 @@ export default class ShipmentsController {
     } else if (auth.user.role == "RL3" || auth.user.role == "RL4") {
       payload.created_for = auth.user.uuid;
     }
-
-/*     if(auth.user.role == "RL1" || "RL2", request.input("created_for") == null){
-      return response.notFound({
-        message:
-          "created_for required",
-      });
-    } */
-
-    /* if (auth.user.role == "RL1" || auth.user.role == "RL2") {
-      payload.localcode = request.input("localcode");
-      payload.localtracking = request.input("localtracking");
-    } else if (
-      request.input("localcode") != null ||
-      request.input("localtracking") != null || request.input("created_for") != null
-    ) {
-      return response.notFound({
-        message:
-          "you have no permission to update for localcode or localtracking or created_for",
-      });
-    } */
 
     const shipment: Shipment = await Shipment.create(payload);
     const dataArray = JSON.parse(request.input("product_data"));
@@ -158,8 +144,8 @@ export default class ShipmentsController {
     if (shipment.status == null) {
       const shipment_histories = await this.get_status(
         shipment.hawb,
-        shipment.localcode,
-        shipment.localtracking
+        shipment.local_code,
+        shipment.local_tracking
       );
      // console.log(shipment_histories, "status11");
       const lastStatus = shipment_histories[shipment_histories.length - 1];
@@ -174,9 +160,8 @@ export default class ShipmentsController {
       Shipment_History: Shipment_History,
     });
   }
-  /* End - Create new shipment */
 
-  /* Start - Show detail shipment*/
+  // Show detail shipment
   public async show({ params, response }) {
     const shipment = await Database.from("shipments")
       .where("hawb", params.id)
@@ -199,44 +184,15 @@ export default class ShipmentsController {
       shipment.hawb
     );
 
-    let manifest_id = null;
-    const Manifest_Shipment = await Database.from("manifest_shipments")
-      .join(
-        "list_shipments",
-        "manifest_shipments.manifest_id",
-        "=",
-        "list_shipments.manifest_id"
-      )
-      .where("list_shipments.hawb", "=", shipment.hawb)
-      .select("manifest_shipments.manifest_id")
-      .first();
-    if (Manifest_Shipment !== null) {
-      manifest_id = Manifest_Shipment.manifest_id;
-    }
-
-    if (shipment.status == null) {
-      const shipment_histories = await this.get_status(
-        shipment.hawb,
-        shipment.localcode,
-        shipment.localtracking
-      );
-      const lastStatus = shipment_histories[shipment_histories.length - 1];
-
-      if (lastStatus != null) {
-        shipment["status"] = lastStatus.status;
-      }
-    }
     return response.ok({
       shipment: shipment,
       shipment_package_info: shipment_package_infos,
       shipment_product_info: shipment_product_infos,
-      shipment_history: shipment_history,
-      Manifest_id: manifest_id,
+      shipment_history: shipment_history
     });
   }
-  /* End - Show detail shipment*/
    
-  /* Start - Update shipment*/
+  // Update shipment
   public async update({ auth, request, params, response }) {
     const shipmentSchema = schema.create({
       shipment_method: schema.string({ trim: true }, [rules.maxLength(255)]),
@@ -267,7 +223,6 @@ export default class ShipmentsController {
     payload.localtracking = request.input("localtracking");
     payload.created_for = request.input("created_for");
     payload.created_by = auth.user.uuid;
-    payload.status = request.input("status");
 
     const shipment: any = await Shipment.findBy("hawb", params.id);
 
@@ -286,7 +241,6 @@ export default class ShipmentsController {
     shipment.localtracking = payload.localtracking;
     shipment.localcode = payload.localcode;
     shipment.created_for = payload.created_for;
-    shipment.status = payload.status;
 
     await shipment.save();
     await ShipmentPackageInfo.query().where("hawb", shipment.hawb).delete();
@@ -339,28 +293,13 @@ export default class ShipmentsController {
       await Shipment_History.save();
     });
 
-    if (shipment.status == null) {
-      const shipment_histories = await this.get_status(
-        shipment.hawb,
-        shipment.localcode,
-        shipment.localtracking
-      );
-     // console.log(shipment_histories, "status11");
-      const lastStatus = shipment_histories[shipment_histories.length - 1];
-
-      if (lastStatus != null) {
-        shipment["status"] = lastStatus.status;
-      }
-    }
-
     return response.ok({
       message: "shipment product successfully update",
       shipment,
     });
   }
-  /* End - Update shipment*/
 
-  /* Start - Deleted shipment*/
+  // Deleted shipment
   public async destroy({ params, response }) {
     const shipment_id = await Database.from("shipments")
       .where("hawb", params.id)
@@ -374,181 +313,110 @@ export default class ShipmentsController {
 
     return response.ok({ message: "Shipment deleted successfully." });
   }
-  /* End - Deleted shipment*/
   
-  /* Start - Tracking shipment*/
-  public async tracking({ response, params }) {
-    const shipments = await Database.from("shipments")
-      .where("hawb", params.hawb)
-      .select(
-        "hawb",
-        "sender_address",
-        "receiver_address",
-        "manifest_id",
-        "localcode",
-        "localtracking"
-      )
-      .first();
+  // Tracking Shipment - 16/5/2024
+  public async tracking({ params, response }: HttpContextContract) {
+    try {
+      const { hawb } = params;
 
-    if (!shipments) {
-      return response.notFound({ message: "Shipment not found" });
-    }
+      // Fetch shipment details and related package and history information
+      const shipment = await Shipment.query()
+        .where('hawb', hawb)
+        .preload('packageInfos')
+        .preload('histories')
+        .firstOrFail();
+      
 
-    const shipment_package_infos = await Database.from("shipment_package_infos")
-      .sum("weight", "weight")
-      .where("hawb", params.hawb);
+      // Calculate total weight from subcharges
+      const totalWeight = shipment.packageInfos.reduce((acc, pkg) => acc + parseFloat(pkg.subcharge), 0);
 
-    const Manifest_Shipment = await Database.from("manifest_shipments")
-      .join(
-        "list_shipments",
-        "manifest_shipments.manifest_id",
-        "=",
-        "list_shipments.manifest_id"
-      )
-      .where("list_shipments.hawb", "=", shipments.hawb)
-      .select("manifest_shipments.manifest_id")
-      .first();
+      // Prepare shipment histories from shipment data
+      const shipmentHistories = shipment.histories.map(history => ({
+        date: history.date,
+        status: history.status,
+        detail: history.detail,
+        location: history.location
+      }));
 
-    const shipment_hwb = shipments.hawb;
-    const sender_address = shipments.sender_address;
-    const receiver_address = shipments.receiver_address;
-    const sender_country = sender_address.country;
-    const receiver_country = receiver_address.country;
-    const receiver_address1 = receiver_address.address_first;
-    const receiver_name = receiver_address.name;
-    const receiver_phone = receiver_address.phone;  
+      // Retrieve all related manifest IDs from ManifestShipment entries
+      const manifestIDs = await ManifestShipment.query()
+        .where('hawb', hawb)
+        .select('manifest_id');
+            
+      // Fetch ManifestHistory based on manifest_ids
+      const manifestHistories = [];
+      if (manifestIDs.length > 0) {
+        const histories = await ManifestHistory.query()
+          .whereIn('manifest_id', manifestIDs.map(ms => ms.manifest_id))
+          .select('date', 'manifest_status as status', 'detail', 'location');
 
-    const shipment_histories = await Database.from("shipment_histories")
-      .where("hawb", params.hawb)
-      .select("status", "detail", "date", "location");
-
-    if (Manifest_Shipment !== null) {
-      const manifest_history = await Database.from("manifest_histories")
-        .where("manifest_id", Manifest_Shipment.manifest_id)
-        .select("detail", "date", "location");
-      for (const item of manifest_history) {
-        item["status"] = "in_transit";
-        shipment_histories.push(item);
+        histories.forEach(history => {
+          manifestHistories.push({
+            date: history.date,
+            status: history.status || 'in_transit', // Set default status if null
+            detail: history.detail,
+            location: history.location
+          });
+        });
       }
-    }
-    const qs = require("qs");
-    let data = qs.stringify({
-      courierCode: shipments.localcode,
-      trackingNumber: shipments.localtracking,
-    });
-    let config = {
-      method: "post",
-      maxBodyLength: Infinity,
-      url: "https://api.ship24.com/public/v1/tracking/search",
-      headers: {
-        Authorization: "Bearer apik_5wWcCn6c91oDarpgNs4fXNDsecEJR2",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      data: data,
-    };
-    let res;
-    await axios
-      .request(config)
-      .then((response) => {
-        res = JSON.stringify(response.data.data.trackings[0]);
-      })
-      .catch((error) => {
-        console.log(error);
+
+      // Combine all histories and sort by date in descending order
+      const combinedHistories = [...shipmentHistories, ...manifestHistories]
+        .sort((a, b) => b.date.getTime() - a.date.getTime()); // Ensure correct time comparison
+
+      // Return the combined data as JSON
+      return response.json({
+        hwb: hawb,
+        shipment_status: shipment.status,
+        sender_country: shipment.sender_address.country,
+        receiver_country: shipment.receiver_address.country,
+        receiver_name: shipment.receiver_address.name,
+        receiver_address: shipment.receiver_address.address_first,
+        receiver_phone: shipment.receiver_address.phone,
+        weight: totalWeight,
+        tracking_history: combinedHistories.length > 0 ? combinedHistories : "No history available"
       });
-    if (res) {
-      res = JSON.parse(res);
-
-      for (const item of res.events) {
-        if (
-          item.statusMilestone != "UNKNOWN" &&
-          item.statusMilestone != "info_received"
-        ) {
-          let tracking = {};
-          tracking["status"] = item.statusMilestone;
-          tracking["detail"] = item.status;
-          tracking["date"] = item.datetime;
-          tracking["location"] = item.location;
-          shipment_histories.push(tracking);
-        }
-      }
+    } catch (error) {
+      // Handle errors such as not found or processing errors
+      response.status(404).send({
+        message: 'Shipment not found'
+      });
     }
-
-    let sortedhistory = shipment_histories.sort((a, b) => (a.date < b.date) ? -1 : 1); 
- 
-    return response.ok({
-      hwb: shipment_hwb,
-      sender_country: sender_country,
-      receiver_country: receiver_country,
-      receiver_name: receiver_name,
-      receiver_address: receiver_address1,
-      receiver_phone: receiver_phone,
-      weight: shipment_package_infos[0].weight,
-      tracking_history: sortedhistory,
-    });
   }
 
-  public async get_status(hawb, localcode, localtracking) {
-    const Manifest_Shipment = await Database.from("manifest_shipments")
-      .join(
-        "list_shipments",
-        "manifest_shipments.manifest_id",
-        "=",
-        "list_shipments.manifest_id"
-      )
-      .where("list_shipments.hawb", "=", hawb)
-      .select("manifest_shipments.manifest_id")
-      .first();
 
-    const shipment_histories = await Database.from("shipment_histories")
-      .where("hawb", hawb)
-      .select("status", "date");
-    if (Manifest_Shipment !== null) {
-      const manifest_history = await Database.from("manifest_histories")
-        .where("manifest_id", Manifest_Shipment.manifest_id)
-        .select("date");
-      for (const item of manifest_history) {
-        item["status"] = "transit";
-        shipment_histories.push(item);
-      }
-    }
+  // Export Shipment
+  public async exportToCSV({ response }: HttpContextContract) {
+    try {
+      const shipments = await Shipment.query().select(
+        'hawb', 
+        'local_code', 
+        'local_tracking', 
+        'status', 
+        'created_at'
+      );
 
-    const qs = require("qs");
-    let data = qs.stringify({
-      carrier: localcode,
-      tracking_number: localtracking,
-    });
-    let config = {
-      method: "post",
-      maxBodyLength: Infinity,
-      url: "https://api.goshippo.com/tracks/",
-      headers: {
-        Authorization:
-          "ShippoToken shippo_live_d894c32ebfb34846af8bf8ff9b04e8e2e9ac10b2",
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      data: data,
-    };
-    let res;
-    await axios
-      .request(config)
-      .then((response) => {
-        res = JSON.stringify(response.data);
-      })
-      .catch((error) => {
-        console.log(error);
+      const csvStringifier = createCsvStringifier({
+        header: [
+          { id: 'hawb', title: 'HAWB' },
+          { id: 'local_code', title: 'Local Code' },
+          { id: 'local_tracking', title: 'Local Tracking' },
+          { id: 'status', title: 'Status' },
+          { id: 'created_at', title: 'Created At' }
+        ]
       });
-    if (res) {
-      res = JSON.parse(res);
 
-      for (const item of res.tracking_history) {
-        if (item.status != "UNKNOWN" || item.status != "PRE_TRANSIT") {
-          let tracking = {};
-          tracking["status"] = item.status;
-          tracking["date"] = item.status_date;
-          shipment_histories.push(tracking);
-        }
-      }
+      const header = csvStringifier.getHeaderString();
+      const records = csvStringifier.stringifyRecords(shipments);
+
+      response.header('Content-Type', 'text/csv');
+      response.header('Content-Disposition', 'attachment; filename="shipments.csv"');
+      return response.send(header + records);
+    } catch (error) {
+      console.error('Failed to export shipments: ', error);
+      return response.status(500).send({ message: "Failed to export shipments" });
     }
-    return shipment_histories;
   }
+
+
 }

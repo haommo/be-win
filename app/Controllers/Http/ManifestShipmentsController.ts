@@ -1,6 +1,6 @@
 // import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import ManifestShipment from "App/Models/ManifestShipment";
-import ListShipment from "App/Models/ListShipment";
+import ManifestShipment from "App/Models/Manifest";
+import ListShipment from "App/Models/ManifestShipment";
 import ManifestHistory from "App/Models/ManifestHistory";
 import { schema, rules } from "@ioc:Adonis/Core/Validator";
 const { v1: uuidv1 } = require("uuid");

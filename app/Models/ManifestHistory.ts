@@ -1,10 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, BelongsTo, belongsTo } from '@ioc:Adonis/Lucid/Orm'
+import Manifest from 'App/Models/Manifest'  // Ensure this path matches the location of your Manifest model
+
 
 export default class ManifestHistory extends BaseModel {
-
-  protected tableName = 'shipment_histories'
-
+  public static table = 'manifest_histories'  // Make sure the table name is correctly defined
 
   @column({ isPrimary: true })
   public id: number
@@ -13,7 +13,13 @@ export default class ManifestHistory extends BaseModel {
   public uuid: string;
 
   @column()
-  public manifest_id: number;
+  public manifest_id: string;
+
+  @belongsTo(() => Manifest, {
+    foreignKey: 'manifest_id',  // 'manifest_id' in ManifestHistory links to 'manifest_id' in Manifest
+    localKey: 'manifest_id'    // Assuming 'manifest_id' is a unique identifier in the Manifest model
+  })
+  public manifest: BelongsTo<typeof Manifest>
 
   @column()
   public date: Date;
@@ -26,6 +32,9 @@ export default class ManifestHistory extends BaseModel {
   
   @column()
   public location: string;
+
+  @column()
+  public manifest_status: string;
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
